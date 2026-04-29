@@ -303,6 +303,10 @@
       display: flex; align-items: center; justify-content: center;
       padding: 20px; z-index: 60;
     }
+    /* The default user-agent rule [hidden]{display:none} is overridden by
+       .modal-bg's display:flex above, so re-assert it explicitly. Without
+       this both modals render on page load. */
+    .modal-bg[hidden] { display: none !important; }
     .modal {
       background: var(--bg); border-radius: var(--radius);
       padding: 18px; width: 100%; max-width: 360px;
