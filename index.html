@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#31add3">
+  <title>Fairy Tails — Orders</title>
+  <style>
+    /* -------- Tokens -------- */
+    :root {
+      --accent: #31add3;
+      --accent-dark: #248faf;
+      --accent-soft: #e9f7fc;
+      --ink: #1d2731;
+      --ink-soft: #5a6772;
+      --line: #e6ebef;
+      --bg: #ffffff;
+      --bg-soft: #f7fafb;
+      --danger: #c0392b;
+      --shadow: 0 1px 2px rgba(20,40,60,.04), 0 4px 12px rgba(20,40,60,.06);
+      --radius: 14px;
+      --radius-sm: 10px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--bg-soft);
+      color: var(--ink);
+      font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            "Helvetica Neue", Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-text-size-adjust: 100%;
+    }
+    body { padding-bottom: env(safe-area-inset-bottom); }
+    button { font: inherit; cursor: pointer; }
+    input, select, textarea, button { font: inherit; color: inherit; }
+
+    /* -------- App shell -------- */
+    .app { max-width: 640px; margin: 0 auto; }
+    header.bar {
+      position: sticky; top: 0; z-index: 20;
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+      padding: 10px 14px 0;
+    }
+    .brand {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px;
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 17px; font-weight: 700;
+      color: var(--ink);
+      letter-spacing: .2px;
+    }
+    .brand h1 small {
+      display: block; font-size: 11px; font-weight: 500;
+      color: var(--ink-soft); letter-spacing: .3px; text-transform: uppercase;
+    }
+    .initials-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--accent-soft); color: var(--accent-dark);
+      border: 1px solid #c9e8f3;
+      padding: 6px 10px; border-radius: 999px;
+      font-size: 13px; font-weight: 600;
+    }
+    .initials-chip button {
+      background: none; border: 0; padding: 0;
+      color: var(--accent-dark); text-decoration: underline;
+      font-size: 12px; font-weight: 600;
+    }
+
+    /* -------- Tabs -------- */
+    .tabs { display: flex; gap: 4px; margin-top: 10px; }
+    .tab {
+      flex: 1; padding: 12px 0; text-align: center;
+      background: transparent; border: 0;
+      font-size: 15px; font-weight: 600; color: var(--ink-soft);
+      border-bottom: 3px solid transparent;
+    }
+    .tab[aria-selected="true"] {
+      color: var(--accent-dark);
+      border-bottom-color: var(--accent);
+    }
+
+    main { padding: 14px; }
+    section.tab-panel { display: none; }
+    section.tab-panel.active { display: block; }
+
+    /* -------- Forms / cards -------- */
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .card h2 {
+      margin: 0 0 10px; font-size: 15px; font-weight: 700;
+      color: var(--ink);
+    }
+    label {
+      display: block; font-size: 13px; font-weight: 600;
+      color: var(--ink-soft); margin: 10px 0 6px;
+    }
+    input[type="text"], input[type="number"], input[type="date"],
+    select, textarea {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      font-size: 16px;
+      color: var(--ink);
+      -webkit-appearance: none; appearance: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: 0;
+      border-color: var(--accent);
+      background: var(--bg);
+      box-shadow: 0 0 0 3px rgba(49,173,211,.18);
+    }
+    textarea { resize: vertical; min-height: 44px; }
+    .row { display: flex; gap: 10px; }
+    .row > * { flex: 1; min-width: 0; }
+    .row .narrow { flex: 0 0 110px; }
+
+    /* -------- Buttons -------- */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 6px;
+      padding: 14px 16px;
+      border: 0; border-radius: var(--radius-sm);
+      background: var(--accent); color: #fff;
+      font-size: 16px; font-weight: 700;
+      width: 100%;
+      transition: background .12s ease, transform .12s ease;
+    }
+    .btn:active { background: var(--accent-dark); transform: scale(.99); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn.secondary {
+      background: var(--bg); color: var(--accent-dark);
+      border: 1px solid #c9e8f3;
+    }
+    .btn.danger { background: var(--danger); }
+    .btn-mini {
+      padding: 8px 12px; font-size: 13px; width: auto;
+      border-radius: 999px;
+    }
+    .icon-btn {
+      background: transparent; border: 0; padding: 6px;
+      color: var(--ink-soft); font-size: 13px; font-weight: 600;
+    }
+
+    /* -------- Order item card -------- */
+    .item {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .item .item-main { flex: 1; min-width: 0; }
+    .item .item-name {
+      font-size: 16px; font-weight: 700; color: var(--ink);
+      word-break: break-word;
+    }
+    .item .meta {
+      margin-top: 6px;
+      font-size: 12px; color: var(--ink-soft);
+      display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center;
+    }
+    .badge {
+      display: inline-block;
+      background: var(--accent-soft); color: var(--accent-dark);
+      padding: 2px 8px; border-radius: 999px;
+      font-weight: 600; font-size: 11px;
+    }
+    .item .notes {
+      margin-top: 6px; font-size: 13px; color: var(--ink);
+      background: var(--bg-soft); border-radius: 8px;
+      padding: 6px 8px; font-style: italic; word-break: break-word;
+    }
+    .item .ordered-btn {
+      flex: 0 0 auto;
+      padding: 12px 14px;
+      border: 0; border-radius: var(--radius-sm);
+      background: var(--accent); color: #fff;
+      font-size: 13px; font-weight: 700;
+      align-self: stretch;
+      min-width: 84px;
+    }
+    .item .ordered-btn:active { background: var(--accent-dark); }
+
+    /* -------- Section heads -------- */
+    .section-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin: 18px 4px 8px;
+    }
+    .section-head h3 {
+      margin: 0; font-size: 15px; font-weight: 700; color: var(--ink);
+    }
+    .section-head .count {
+      font-size: 12px; color: var(--ink-soft); font-weight: 600;
+    }
+    .section-empty {
+      font-size: 13px; color: var(--ink-soft);
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px dashed var(--line); border-radius: var(--radius);
+      margin-bottom: 10px;
+    }
+
+    /* -------- Recently ordered -------- */
+    details.recent {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      margin-top: 18px;
+    }
+    details.recent > summary {
+      list-style: none; cursor: pointer;
+      font-size: 14px; font-weight: 700; color: var(--ink);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    details.recent > summary::-webkit-details-marker { display: none; }
+    details.recent > summary::after {
+      content: "▾"; color: var(--ink-soft); font-size: 12px;
+      transition: transform .15s ease;
+    }
+    details.recent[open] > summary::after { transform: rotate(180deg); }
+    details.recent .recent-list { margin-top: 10px; }
+    .recent-item {
+      display: flex; gap: 10px; align-items: center;
+      padding: 8px 0; border-top: 1px solid var(--line);
+    }
+    .recent-item:first-child { border-top: 0; }
+    .recent-item .recent-main { flex: 1; min-width: 0; }
+    .recent-item .recent-name {
+      font-size: 14px; font-weight: 600; color: var(--ink);
+      word-break: break-word;
+    }
+    .recent-item .recent-meta {
+      font-size: 11px; color: var(--ink-soft); margin-top: 2px;
+    }
+
+    /* -------- Toast -------- */
+    .toast {
+      position: fixed; left: 50%; bottom: 20px;
+      transform: translateX(-50%);
+      background: var(--ink); color: #fff;
+      padding: 10px 14px; border-radius: 999px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.18);
+      font-size: 14px; font-weight: 600;
+      display: flex; align-items: center; gap: 12px;
+      max-width: calc(100% - 28px);
+      z-index: 50;
+      animation: toast-in .18s ease;
+    }
+    .toast.error { background: var(--danger); }
+    .toast button {
+      background: var(--accent); color: #fff;
+      border: 0; border-radius: 999px;
+      padding: 6px 12px; font-size: 13px; font-weight: 700;
+    }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translate(-50%, 8px); }
+      to   { opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    /* -------- States -------- */
+    .empty {
+      text-align: center;
+      padding: 28px 18px;
+      color: var(--ink-soft);
+      background: var(--bg);
+      border: 1px dashed var(--line);
+      border-radius: var(--radius);
+    }
+    .empty strong { color: var(--ink); display: block; margin-bottom: 4px; }
+    .loading {
+      text-align: center; color: var(--ink-soft);
+      padding: 18px; font-size: 14px;
+    }
+    .toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin: 4px 4px 8px;
+    }
+    .toolbar h2 {
+      margin: 0; font-size: 15px; font-weight: 700; color: var(--ink);
+    }
+
+    /* -------- Initials prompt overlay -------- */
+    .modal-bg {
+      position: fixed; inset: 0;
+      background: rgba(20,40,60,.45);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; z-index: 60;
+    }
+    .modal {
+      background: var(--bg); border-radius: var(--radius);
+      padding: 18px; width: 100%; max-width: 360px;
+      box-shadow: 0 20px 40px rgba(0,0,0,.18);
+    }
+    .modal h2 { margin: 0 0 6px; font-size: 17px; }
+    .modal p { margin: 0 0 14px; color: var(--ink-soft); font-size: 14px; }
+
+    /* -------- Misc -------- */
+    .hint {
+      font-size: 12px; color: var(--ink-soft);
+      margin-top: 6px;
+    }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0;
+      margin: -1px; overflow: hidden; clip: rect(0,0,0,0);
+      white-space: nowrap; border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="bar">
+      <div class="brand">
+        <h1>The Fairy Tails<small>Staff Order List</small></h1>
+        <span class="initials-chip" id="initialsChip" hidden>
+          <span id="initialsValue">—</span>
+          <button type="button" id="changeInitials">change</button>
+        </span>
+      </div>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-list" aria-selected="true"
+                aria-controls="panel-list">Order List</button>
+        <button class="tab" role="tab" id="tab-summary" aria-selected="false"
+                aria-controls="panel-summary">Summary</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Order List tab -->
+      <section class="tab-panel active" id="panel-list"
+               role="tabpanel" aria-labelledby="tab-list">
+        <form class="card" id="addForm" autocomplete="off">
+          <h2>Add a new item</h2>
+          <label for="itemName">Item</label>
+          <input type="text" id="itemName" name="itemName"
+                 placeholder="e.g. Dog shampoo" required maxlength="120">
+
+          <label for="category">Category</label>
+          <select id="category" name="category" required>
+            <option value="Dog Grooming">Dog Grooming</option>
+            <option value="Dog Training">Dog Training</option>
+            <option value="Dog Boarding">Dog Boarding</option>
+            <option value="Doggy Daycare">Doggy Daycare</option>
+            <option value="Miscellaneous">Miscellaneous</option>
+          </select>
+
+          <div class="row">
+            <div class="narrow">
+              <label for="quantity">Qty</label>
+              <input type="number" id="quantity" name="quantity"
+                     min="1" step="1" inputmode="numeric" placeholder="—">
+            </div>
+            <div>
+              <label for="dateAdded">Date</label>
+              <input type="date" id="dateAdded" name="dateAdded" required>
+            </div>
+          </div>
+
+          <label for="notes">Notes <span class="hint">(optional)</span></label>
+          <textarea id="notes" name="notes" rows="2" maxlength="240"
+                    placeholder="e.g. the lavender one, not the green"></textarea>
+
+          <div style="margin-top:14px;">
+            <button class="btn" type="submit" id="addBtn">Add Item</button>
+          </div>
+        </form>
+
+        <div class="toolbar">
+          <h2 id="activeHeading">Active items</h2>
+          <button class="icon-btn" type="button" id="refreshList"
+                  title="Refresh">⟲ Refresh</button>
+        </div>
+        <div id="activeList"><div class="loading">Loading…</div></div>
+      </section>
+
+      <!-- Summary tab -->
+      <section class="tab-panel" id="panel-summary"
+               role="tabpanel" aria-labelledby="tab-summary">
+        <div class="toolbar">
+          <h2>By category</h2>
+          <button class="icon-btn" type="button" id="refreshSummary"
+                  title="Refresh">⟲ Refresh</button>
+        </div>
+        <div id="summaryList"><div class="loading">Loading…</div></div>
+
+        <details class="recent" id="recentBlock">
+          <summary>Recently ordered <span class="hint" id="recentCount"></span></summary>
+          <div class="recent-list" id="recentList">
+            <div class="loading">Loading…</div>
+          </div>
+        </details>
+      </section>
+    </main>
+  </div>
+
+  <!-- Initials prompt -->
+  <div class="modal-bg" id="initialsModal" hidden>
+    <div class="modal">
+      <h2>Your initials</h2>
+      <p>Used so we know who added or ordered each item. Stored on this device only.</p>
+      <input type="text" id="initialsInput" maxlength="4"
+             placeholder="e.g. KS" autocapitalize="characters"
+             autocomplete="off" inputmode="text">
+      <div style="margin-top:14px;">
+        <button class="btn" type="button" id="saveInitials">Save</button>
+      </div>
+      <p class="hint" style="margin-top:10px;">
+        Need to reset the Sheet connection? <button class="icon-btn"
+        type="button" id="resetApi"
+        style="text-decoration:underline;padding:0;">Change API URL</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- API URL prompt (first-time setup if not baked into the file) -->
+  <div class="modal-bg" id="apiModal" hidden>
+    <div class="modal">
+      <h2>Connect to Google Sheet</h2>
+      <p>Paste the Apps Script Web App URL (ends in <code>/exec</code>).
+         You'll get this once — see the setup guide.</p>
+      <input type="text" id="apiInput"
+             placeholder="https://script.google.com/macros/s/.../exec"
+             autocomplete="off" inputmode="url">
+      <div style="margin-top:14px;">
+        <button class="btn" type="button" id="saveApi">Save</button>
+      </div>
+      <p class="hint" style="margin-top:10px;">
+        This URL is stored only on this device. Tap "change" next to your
+        initials to reset it later.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    /* ============================ CONFIG ===================================
+     * Paste your deployed Apps Script Web App URL here. It looks like:
+     *   https://script.google.com/macros/s/AKfyc.../exec
+     * If you leave it blank, the page will prompt you for it on first load
+     * and remember it on this device.
+     * ===================================================================== */
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbygmkCl1W-ZKq9Argtqmtg7fTfPGyXaw07z4EP68wxwWxGTIZgN4o92cun9yrPHxZdXSA/exec';
+
+    /* ----------------------------- State / utils ---------------------------- */
+    const STATE = {
+      active: [],
+      recent: [],
+      categories: ['Dog Grooming','Dog Training','Dog Boarding',
+                   'Doggy Daycare','Miscellaneous'],
+      pendingUndo: null,
+      undoTimer: null
+    };
+    const INITIALS_KEY = 'ftails.initials';
+    const API_KEY = 'ftails.apiUrl';
+
+    function getApiUrl() {
+      if (APPS_SCRIPT_URL) return APPS_SCRIPT_URL;
+      try { return localStorage.getItem(API_KEY) || ''; }
+      catch (e) { return ''; }
+    }
+    function setApiUrl(v) {
+      const clean = String(v||'').trim();
+      try { localStorage.setItem(API_KEY, clean); } catch (e) {}
+      return clean;
+    }
+
+    function getInitials() {
+      try { return localStorage.getItem(INITIALS_KEY) || ''; }
+      catch (e) { return ''; }
+    }
+    function setInitials(v) {
+      const clean = String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);
+      try { localStorage.setItem(INITIALS_KEY, clean); } catch (e) {}
+      document.getElementById('initialsValue').textContent = clean || '—';
+      document.getElementById('initialsChip').hidden = !clean;
+      return clean;
+    }
+    function todayLocalISO() {
+      const d = new Date();
+      const tz = d.getTimezoneOffset() * 60000;
+      return new Date(d - tz).toISOString().slice(0,10);
+    }
+    function formatDate(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      const today = new Date();
+      const sameDay = d.toDateString() === today.toDateString();
+      if (sameDay) return 'Today';
+      const yest = new Date(today); yest.setDate(today.getDate()-1);
+      if (d.toDateString() === yest.toDateString()) return 'Yesterday';
+      return d.toLocaleDateString('en-GB',
+        { day:'numeric', month:'short' });
+    }
+    function escapeHtml(s) {
+      return String(s||'').replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    /* ----------------------------- Server bridge --------------------------- *
+     * Uses fetch() against the Apps Script Web App URL. We send the body as
+     * Content-Type: text/plain to avoid a CORS preflight (Apps Script does
+     * not handle OPTIONS requests).
+     * --------------------------------------------------------------------- */
+    async function call(action, params) {
+      const url = getApiUrl();
+      if (!url) throw new Error('Backend URL not set');
+      const res = await fetch(url, {
+        method: 'POST',
+        // text/plain avoids the CORS preflight that Apps Script rejects.
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: action, params: params || {} }),
+        redirect: 'follow'
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      return data;
+    }
+
+    /* --------------------------------- UI ---------------------------------- */
+    function showToast(msg, opts) {
+      opts = opts || {};
+      removeToast();
+      const t = document.createElement('div');
+      t.className = 'toast' + (opts.error ? ' error' : '');
+      t.id = 'toast';
+      t.innerHTML = '<span>' + escapeHtml(msg) + '</span>';
+      if (opts.actionLabel) {
+        const btn = document.createElement('button');
+        btn.textContent = opts.actionLabel;
+        btn.addEventListener('click', () => {
+          if (opts.onAction) opts.onAction();
+          removeToast();
+        });
+        t.appendChild(btn);
+      }
+      document.body.appendChild(t);
+      const ttl = opts.ttl || 3000;
+      t._timer = setTimeout(removeToast, ttl);
+    }
+    function removeToast() {
+      const t = document.getElementById('toast');
+      if (t) {
+        if (t._timer) clearTimeout(t._timer);
+        t.remove();
+      }
+    }
+
+    function switchTab(which) {
+      const isList = which === 'list';
+      document.getElementById('tab-list')
+        .setAttribute('aria-selected', isList ? 'true' : 'false');
+      document.getElementById('tab-summary')
+        .setAttribute('aria-selected', isList ? 'false' : 'true');
+      document.getElementById('panel-list')
+        .classList.toggle('active', isList);
+      document.getElementById('panel-summary')
+        .classList.toggle('active', !isList);
+      if (!isList) renderSummary();
+    }
+
+    /* ---- Renderers ---- */
+    function renderActive() {
+      const wrap = document.getElementById('activeList');
+      const heading = document.getElementById('activeHeading');
+      heading.textContent = 'Active items (' + STATE.active.length + ')';
+      if (!STATE.active.length) {
+        wrap.innerHTML =
+          '<div class="empty"><strong>No active items</strong>'
+          + 'Add the first request using the form above.</div>';
+        return;
+      }
+      wrap.innerHTML = STATE.active.map(o => itemCardHtml(o, false)).join('');
+    }
+
+    function renderSummary() {
+      const wrap = document.getElementById('summaryList');
+      const grouped = {};
+      STATE.categories.forEach(c => grouped[c] = []);
+      STATE.active.forEach(o => {
+        const cat = grouped[o.category] ? o.category : 'Miscellaneous';
+        grouped[cat].push(o);
+      });
+      const html = STATE.categories.map(cat => {
+        const items = grouped[cat];
+        const head =
+          '<div class="section-head">'
+          + '<h3>' + escapeHtml(cat) + '</h3>'
+          + '<span class="count">' + items.length + ' item'
+          + (items.length === 1 ? '' : 's') + '</span>'
+          + '</div>';
+        if (!items.length) {
+          return head + '<div class="section-empty">No items.</div>';
+        }
+        return head + items.map(o => itemCardHtml(o, true)).join('');
+      }).join('');
+      wrap.innerHTML = html;
+
+      // Recently ordered
+      const recentList = document.getElementById('recentList');
+      const recentCount = document.getElementById('recentCount');
+      recentCount.textContent =
+        STATE.recent.length ? '(' + STATE.recent.length + ')' : '(0)';
+      if (!STATE.recent.length) {
+        recentList.innerHTML =
+          '<div class="hint">Items marked as ordered in the last 7 days '
+          + 'will appear here.</div>';
+      } else {
+        recentList.innerHTML = STATE.recent.map(o => `
+          <div class="recent-item">
+            <div class="recent-main">
+              <div class="recent-name">${escapeHtml(o.itemName)}</div>
+              <div class="recent-meta">
+                ${escapeHtml(o.category)} ·
+                ordered ${escapeHtml(formatDate(o.orderedDate))}
+                ${o.orderedBy ? '· by ' + escapeHtml(o.orderedBy) : ''}
+              </div>
+            </div>
+            <button class="btn btn-mini secondary"
+                    data-readd="${escapeHtml(o.orderId)}">Re-add</button>
+          </div>
+        `).join('');
+      }
+    }
+
+    function itemCardHtml(o, withOrderedBtn) {
+      const meta = [];
+      meta.push('<span class="badge">' + escapeHtml(o.category) + '</span>');
+      if (o.quantity) meta.push('Qty ' + escapeHtml(o.quantity));
+      meta.push('Added ' + escapeHtml(formatDate(o.dateAdded)));
+      if (o.addedBy) meta.push('by ' + escapeHtml(o.addedBy));
+      const notes = o.notes
+        ? '<div class="notes">' + escapeHtml(o.notes) + '</div>'
+        : '';
+      const btn = withOrderedBtn
+        ? '<button class="ordered-btn" data-ordered="'
+          + escapeHtml(o.orderId) + '">Mark<br>ordered</button>'
+        : '';
+      return ''
+        + '<div class="item">'
+        +   '<div class="item-main">'
+        +     '<div class="item-name">' + escapeHtml(o.itemName) + '</div>'
+        +     '<div class="meta">' + meta.join(' · ') + '</div>'
+        +     notes
+        +   '</div>'
+        +   btn
+        + '</div>';
+    }
+
+    /* ---- Data ---- */
+    let loading = false;
+    async function refresh() {
+      if (loading) return;
+      loading = true;
+      try {
+        const data = await call('getOrders');
+        STATE.active = data.active || [];
+        STATE.recent = data.recent || [];
+        if (Array.isArray(data.categories) && data.categories.length) {
+          STATE.categories = data.categories;
+        }
+        renderActive();
+        renderSummary();
+      } catch (e) {
+        console.error(e);
+        document.getElementById('activeList').innerHTML =
+          '<div class="empty"><strong>Couldn’t load orders</strong>'
+          + 'Check your connection and try Refresh.</div>';
+        showToast('Could not load orders', { error: true });
+      } finally {
+        loading = false;
+      }
+    }
+
+    /* ---- Actions ---- */
+    async function handleAdd(e) {
+      e.preventDefault();
+      const initials = getInitials();
+      if (!initials) { promptInitials(); return; }
+
+      const itemName = document.getElementById('itemName').value.trim();
+      if (!itemName) return;
+      const category = document.getElementById('category').value;
+      const quantity = document.getElementById('quantity').value;
+      const dateAdded = document.getElementById('dateAdded').value;
+      const notes = document.getElementById('notes').value.trim();
+      const btn = document.getElementById('addBtn');
+      btn.disabled = true; btn.textContent = 'Adding…';
+      try {
+        const res = await call('addOrder', {
+          itemName, category, quantity, notes,
+          addedBy: initials,
+          dateAdded: dateAdded
+            ? new Date(dateAdded + 'T00:00:00').toISOString()
+            : null
+        });
+        if (!res || !res.ok) throw new Error(res && res.error || 'Failed');
+        // Reset form (keep category)
+        document.getElementById('itemName').value = '';
+        document.getElementById('quantity').value = '';
+        document.getElementById('notes').value = '';
+        document.getElementById('dateAdded').value = todayLocalISO();
+        showToast('Added to the list');
+        await refresh();
+        document.getElementById('itemName').focus();
+      } catch (e) {
+        console.error(e);
+        showToast('Could not add item', { error: true });
+      } finally {
+        btn.disabled = false; btn.textContent = 'Add Item';
+      }
+    }
+
+    async function handleOrdered(orderId) {
+      const initials = getInitials();
+      if (!initials) { promptInitials(); return; }
+
+      // Optimistically remove from local state and re-render
+      const idx = STATE.active.findIndex(o => o.orderId === orderId);
+      if (idx === -1) return;
+      const removed = STATE.active.splice(idx, 1)[0];
+      renderActive(); renderSummary();
+
+      // Send to server
+      try {
+        const res = await call('markOrdered', { orderId: orderId, initials: initials });
+        if (!res || !res.ok) throw new Error(res && res.error || 'Failed');
+      } catch (e) {
+        console.error(e);
+        STATE.active.splice(idx, 0, removed);
+        renderActive(); renderSummary();
+        showToast('Could not mark ordered', { error: true });
+        return;
+      }
+
+      // Show undo for 5s
+      showToast('Ordered: ' + removed.itemName, {
+        actionLabel: 'Undo',
+        ttl: 5000,
+        onAction: async () => {
+          try {
+            const res = await call('undoOrdered', { orderId: orderId });
+            if (!res || !res.ok) throw new Error('Failed');
+            await refresh();
+            showToast('Undone');
+          } catch (err) {
+            console.error(err);
+            showToast('Undo failed', { error: true });
+          }
+        }
+      });
+      // Refresh recent-ordered count after the toast appears
+      setTimeout(refresh, 200);
+    }
+
+    async function handleReadd(orderId) {
+      const initials = getInitials();
+      if (!initials) { promptInitials(); return; }
+      try {
+        const res = await call('reAddOrder', { orderId: orderId, addedBy: initials });
+        if (!res || !res.ok) throw new Error(res && res.error || 'Failed');
+        showToast('Re-added to the list');
+        await refresh();
+      } catch (e) {
+        console.error(e);
+        showToast('Could not re-add', { error: true });
+      }
+    }
+
+    /* ---- Initials prompt ---- */
+    function promptInitials() {
+      const m = document.getElementById('initialsModal');
+      const input = document.getElementById('initialsInput');
+      input.value = getInitials();
+      m.hidden = false;
+      setTimeout(() => input.focus(), 50);
+    }
+    function closeInitials() {
+      document.getElementById('initialsModal').hidden = true;
+    }
+
+    /* ---- API URL prompt ---- */
+    function promptApi() {
+      const m = document.getElementById('apiModal');
+      const input = document.getElementById('apiInput');
+      input.value = getApiUrl();
+      m.hidden = false;
+      setTimeout(() => input.focus(), 50);
+    }
+    function closeApi() {
+      document.getElementById('apiModal').hidden = true;
+    }
+
+    /* ---- Wire up ---- */
+    function init() {
+      // Tabs
+      document.getElementById('tab-list')
+        .addEventListener('click', () => switchTab('list'));
+      document.getElementById('tab-summary')
+        .addEventListener('click', () => switchTab('summary'));
+
+      // Form
+      document.getElementById('dateAdded').value = todayLocalISO();
+      document.getElementById('addForm').addEventListener('submit', handleAdd);
+
+      // Refresh buttons
+      document.getElementById('refreshList')
+        .addEventListener('click', refresh);
+      document.getElementById('refreshSummary')
+        .addEventListener('click', refresh);
+
+      // Delegated clicks
+      document.addEventListener('click', e => {
+        const ord = e.target.closest('[data-ordered]');
+        if (ord) { handleOrdered(ord.getAttribute('data-ordered')); return; }
+        const re = e.target.closest('[data-readd]');
+        if (re) { handleReadd(re.getAttribute('data-readd')); return; }
+      });
+
+      // Initials chip
+      document.getElementById('changeInitials')
+        .addEventListener('click', () => {
+          // Long-press behaviour: if user already has initials, also let
+          // them reset the API URL by tapping the chip then choosing.
+          promptInitials();
+        });
+      document.getElementById('saveInitials')
+        .addEventListener('click', () => {
+          const v = document.getElementById('initialsInput').value;
+          const clean = setInitials(v);
+          if (clean) closeInitials();
+        });
+      document.getElementById('initialsInput')
+        .addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('saveInitials').click();
+          }
+        });
+
+      // Reset API URL link inside initials modal
+      document.getElementById('resetApi')
+        .addEventListener('click', () => { closeInitials(); promptApi(); });
+
+      // API URL save
+      document.getElementById('saveApi')
+        .addEventListener('click', () => {
+          const v = document.getElementById('apiInput').value;
+          if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(v)) {
+            showToast('That doesn’t look like an Apps Script URL', { error: true });
+            return;
+          }
+          setApiUrl(v);
+          closeApi();
+          refresh();
+        });
+      document.getElementById('apiInput')
+        .addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('saveApi').click();
+          }
+        });
+
+      // First-time setup ordering: API URL → initials → load
+      const initVal = getInitials();
+      setInitials(initVal);
+      if (!getApiUrl()) {
+        promptApi();
+      } else if (!initVal) {
+        promptInitials();
+      }
+
+      // Initial fetch (will simply error gracefully if no URL)
+      if (getApiUrl()) refresh();
+      else document.getElementById('activeList').innerHTML =
+        '<div class="empty"><strong>Connect to your Google Sheet</strong>'
+        + 'Paste the Apps Script URL to get started.</div>';
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
