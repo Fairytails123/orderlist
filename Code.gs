@@ -3,14 +3,7 @@
  * Google Apps Script backend
  */
 
-/* If you opened this script from inside a Google Sheet (Extensions → Apps
- * Script) the script is "container-bound" and SHEET_ID can stay empty —
- * SpreadsheetApp.getActive() will find the Sheet automatically.
- * If the script is standalone (created at script.google.com), paste the
- * Sheet's ID below. The ID is the long string in the Sheet URL between /d/
- * and /edit.
- */
-const SHEET_ID = '';
+const SHEET_ID = '1OoNBrlhogrfRobAfHhDAA1QsAwDIzEinvCu3TzEvAQE';
 
 const SHEET_NAME = 'Staff Orders';
 const HEADERS = [
@@ -21,8 +14,6 @@ const CATEGORIES = [
   'Dog Grooming', 'Dog Training', 'Dog Boarding',
   'Doggy Daycare', 'Miscellaneous'
 ];
-
-/* ----------------------------- Web entry points --------------------------- */
 
 function doGet(e) {
   try {
@@ -94,8 +85,6 @@ function dispatch_(action, params) {
   }
 }
 
-/* ------------------------------ Sheet helpers ----------------------------- */
-
 function getSpreadsheet_() {
   if (SHEET_ID) {
     return SpreadsheetApp.openById(SHEET_ID);
@@ -103,10 +92,8 @@ function getSpreadsheet_() {
   const ss = SpreadsheetApp.getActive();
   if (!ss) {
     throw new Error(
-      'No spreadsheet found. Either (a) open the Apps Script editor from ' +
-      'inside your Google Sheet via Extensions → Apps Script, or ' +
-      '(b) paste your Sheet ID into the SHEET_ID constant at the top of ' +
-      'Code.gs and redeploy.'
+      'No spreadsheet found. Paste your Sheet ID into the SHEET_ID constant ' +
+      'at the top of Code.gs and redeploy.'
     );
   }
   return ss;
@@ -172,13 +159,11 @@ function sanitiseCategory_(s) {
   return CATEGORIES.indexOf(s) === -1 ? 'Miscellaneous' : s;
 }
 
-/* ------------------------------ Public API -------------------------------- */
-
 function getOrders() {
   const sh = ensureSheet_();
   const last = sh.getLastRow();
   const out = { active: [], recent: [], categories: CATEGORIES.slice() };
-  if (last < 2) return out;
+  if (last < 2) return { ok: true, active: [], recent: [], categories: CATEGORIES.slice() };
   const data = sh.getRange(2, 1, last - 1, HEADERS.length).getValues();
   const sevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
   for (let i = 0; i < data.length; i++) {
