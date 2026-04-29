@@ -414,31 +414,11 @@
     </main>
   </div>
 
-  <!-- API URL prompt (first-time setup if not baked into the file) -->
-  <div class="modal-bg" id="apiModal" hidden>
-    <div class="modal">
-      <h2>Connect to Google Sheet</h2>
-      <p>Paste the Apps Script Web App URL (ends in <code>/exec</code>).
-         You'll get this once — see the setup guide.</p>
-      <input type="text" id="apiInput"
-             placeholder="https://script.google.com/macros/s/.../exec"
-             autocomplete="off" inputmode="url">
-      <div style="margin-top:14px;">
-        <button class="btn" type="button" id="saveApi">Save</button>
-      </div>
-      <p class="hint" style="margin-top:10px;">
-        This URL is stored only on this device. Tap "change" next to your
-        initials to reset it later.
-      </p>
-    </div>
-  </div>
 
   <script>
     /* ============================ CONFIG ===================================
-     * Paste your deployed Apps Script Web App URL here. It looks like:
-     *   https://script.google.com/macros/s/AKfyc.../exec
-     * If you leave it blank, the page will prompt you for it on first load
-     * and remember it on this device.
+     * Apps Script Web App URL — managed by the developer/manager.
+     * To change it, edit this constant and redeploy via GitHub Pages.
      * ===================================================================== */
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbygmkCl1W-ZKq9Argtqmtg7fTfPGyXaw07z4EP68wxwWxGTIZgN4o92cun9yrPHxZdXSA/exec';
 
@@ -452,17 +432,9 @@
       undoTimer: null
     };
     const INITIALS_KEY = 'ftails.initials';
-    const API_KEY = 'ftails.apiUrl';
 
     function getApiUrl() {
-      if (APPS_SCRIPT_URL) return APPS_SCRIPT_URL;
-      try { return localStorage.getItem(API_KEY) || ''; }
-      catch (e) { return ''; }
-    }
-    function setApiUrl(v) {
-      const clean = String(v||'').trim();
-      try { localStorage.setItem(API_KEY, clean); } catch (e) {}
-      return clean;
+      return APPS_SCRIPT_URL;
     }
 
     function getInitials() {
@@ -786,18 +758,6 @@
       }
     }
 
-    /* ---- API URL prompt ---- */
-    function promptApi() {
-      const m = document.getElementById('apiModal');
-      const input = document.getElementById('apiInput');
-      input.value = getApiUrl();
-      m.hidden = false;
-      setTimeout(() => input.focus(), 50);
-    }
-    function closeApi() {
-      document.getElementById('apiModal').hidden = true;
-    }
-
     /* ---- Wire up ---- */
     function init() {
       // Tabs
@@ -833,36 +793,8 @@
         if (cleaned !== initialsEl.value) initialsEl.value = cleaned;
       });
 
-      // API URL save
-      document.getElementById('saveApi')
-        .addEventListener('click', () => {
-          const v = document.getElementById('apiInput').value;
-          if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(v)) {
-            showToast('That doesn’t look like an Apps Script URL', { error: true });
-            return;
-          }
-          setApiUrl(v);
-          closeApi();
-          refresh();
-        });
-      document.getElementById('apiInput')
-        .addEventListener('keydown', e => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            document.getElementById('saveApi').click();
-          }
-        });
-
-      // First-time setup: only prompt for API URL if it's not baked in
-      if (!getApiUrl()) {
-        promptApi();
-      }
-
-      // Initial fetch (will simply error gracefully if no URL)
-      if (getApiUrl()) refresh();
-      else document.getElementById('activeList').innerHTML =
-        '<div class="empty"><strong>Connect to your Google Sheet</strong>'
-        + 'Paste the Apps Script URL to get started.</div>';
+      // Initial fetch
+      refresh();
     }
 
     document.addEventListener('DOMContentLoaded', init);
