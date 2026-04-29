@@ -332,10 +332,6 @@
     <header class="bar">
       <div class="brand">
         <h1>The Fairy Tails<small>Staff Order List</small></h1>
-        <span class="initials-chip" id="initialsChip" hidden>
-          <span id="initialsValue">—</span>
-          <button type="button" id="changeInitials">change</button>
-        </span>
       </div>
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" id="tab-list" aria-selected="true"
@@ -380,6 +376,11 @@
           <textarea id="notes" name="notes" rows="2" maxlength="240"
                     placeholder="e.g. the lavender one, not the green"></textarea>
 
+          <label for="initials">Your initials <span class="hint">(required)</span></label>
+          <input type="text" id="initials" name="initials" maxlength="4"
+                 placeholder="e.g. KS" autocapitalize="characters"
+                 autocomplete="off" inputmode="text" required>
+
           <div style="margin-top:14px;">
             <button class="btn" type="submit" id="addBtn">Add Item</button>
           </div>
@@ -411,25 +412,6 @@
         </details>
       </section>
     </main>
-  </div>
-
-  <!-- Initials prompt -->
-  <div class="modal-bg" id="initialsModal" hidden>
-    <div class="modal">
-      <h2>Your initials</h2>
-      <p>Used so we know who added or ordered each item. Stored on this device only.</p>
-      <input type="text" id="initialsInput" maxlength="4"
-             placeholder="e.g. KS" autocapitalize="characters"
-             autocomplete="off" inputmode="text">
-      <div style="margin-top:14px;">
-        <button class="btn" type="button" id="saveInitials">Save</button>
-      </div>
-      <p class="hint" style="margin-top:10px;">
-        Need to reset the Sheet connection? <button class="icon-btn"
-        type="button" id="resetApi"
-        style="text-decoration:underline;padding:0;">Change API URL</button>
-      </p>
-    </div>
   </div>
 
   <!-- API URL prompt (first-time setup if not baked into the file) -->
@@ -487,12 +469,14 @@
       try { return localStorage.getItem(INITIALS_KEY) || ''; }
       catch (e) { return ''; }
     }
-    function setInitials(v) {
+    function saveInitials(v) {
       const clean = String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);
       try { localStorage.setItem(INITIALS_KEY, clean); } catch (e) {}
-      document.getElementById('initialsValue').textContent = clean || '—';
-      document.getElementById('initialsChip').hidden = !clean;
       return clean;
+    }
+    function readInitialsField() {
+      const el = document.getElementById('initials');
+      return el ? saveInitials(el.value) : '';
     }
     function todayLocalISO() {
       const d = new Date();
@@ -695,8 +679,12 @@
     /* ---- Actions ---- */
     async function handleAdd(e) {
       e.preventDefault();
-      const initials = getInitials();
-      if (!initials) { promptInitials(); return; }
+      const initials = readInitialsField();
+      if (!initials) {
+        showToast('Please enter your initials', { error: true });
+        document.getElementById('initials').focus();
+        return;
+      }
 
       const itemName = document.getElementById('itemName').value.trim();
       if (!itemName) return;
@@ -733,7 +721,13 @@
 
     async function handleOrdered(orderId) {
       const initials = getInitials();
-      if (!initials) { promptInitials(); return; }
+      if (!initials) {
+        // No initials set yet on this device — prompt at the form
+        switchTab('list');
+        document.getElementById('initials').focus();
+        showToast('Please enter your initials in the form first', { error: true });
+        return;
+      }
 
       // Optimistically remove from local state and re-render
       const idx = STATE.active.findIndex(o => o.orderId === orderId);
@@ -775,7 +769,12 @@
 
     async function handleReadd(orderId) {
       const initials = getInitials();
-      if (!initials) { promptInitials(); return; }
+      if (!initials) {
+        switchTab('list');
+        document.getElementById('initials').focus();
+        showToast('Please enter your initials in the form first', { error: true });
+        return;
+      }
       try {
         const res = await call('reAddOrder', { orderId: orderId, addedBy: initials });
         if (!res || !res.ok) throw new Error(res && res.error || 'Failed');
@@ -785,18 +784,6 @@
         console.error(e);
         showToast('Could not re-add', { error: true });
       }
-    }
-
-    /* ---- Initials prompt ---- */
-    function promptInitials() {
-      const m = document.getElementById('initialsModal');
-      const input = document.getElementById('initialsInput');
-      input.value = getInitials();
-      m.hidden = false;
-      setTimeout(() => input.focus(), 50);
-    }
-    function closeInitials() {
-      document.getElementById('initialsModal').hidden = true;
     }
 
     /* ---- API URL prompt ---- */
@@ -837,30 +824,14 @@
         if (re) { handleReadd(re.getAttribute('data-readd')); return; }
       });
 
-      // Initials chip
-      document.getElementById('changeInitials')
-        .addEventListener('click', () => {
-          // Long-press behaviour: if user already has initials, also let
-          // them reset the API URL by tapping the chip then choosing.
-          promptInitials();
-        });
-      document.getElementById('saveInitials')
-        .addEventListener('click', () => {
-          const v = document.getElementById('initialsInput').value;
-          const clean = setInitials(v);
-          if (clean) closeInitials();
-        });
-      document.getElementById('initialsInput')
-        .addEventListener('keydown', e => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            document.getElementById('saveInitials').click();
-          }
-        });
-
-      // Reset API URL link inside initials modal
-      document.getElementById('resetApi')
-        .addEventListener('click', () => { closeInitials(); promptApi(); });
+      // Initials field — prefill from localStorage, remember on every change
+      const initialsEl = document.getElementById('initials');
+      initialsEl.value = getInitials();
+      initialsEl.addEventListener('input', () => {
+        // Force uppercase + alphanumeric while typing
+        const cleaned = saveInitials(initialsEl.value);
+        if (cleaned !== initialsEl.value) initialsEl.value = cleaned;
+      });
 
       // API URL save
       document.getElementById('saveApi')
@@ -882,13 +853,9 @@
           }
         });
 
-      // First-time setup ordering: API URL → initials → load
-      const initVal = getInitials();
-      setInitials(initVal);
+      // First-time setup: only prompt for API URL if it's not baked in
       if (!getApiUrl()) {
         promptApi();
-      } else if (!initVal) {
-        promptInitials();
       }
 
       // Initial fetch (will simply error gracefully if no URL)
