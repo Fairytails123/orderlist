@@ -1,8 +1,6 @@
 /**
  * The Fairy Tails — Staff Order List
  * Google Apps Script backend
- *
- * Sheet: "Staff Orders" (auto-created on first run)
  */
 
 /* If you opened this script from inside a Google Sheet (Extensions → Apps
@@ -10,69 +8,62 @@
  * SpreadsheetApp.getActive() will find the Sheet automatically.
  * If the script is standalone (created at script.google.com), paste the
  * Sheet's ID below. The ID is the long string in the Sheet URL between /d/
- * and /edit, e.g.
- *   https://docs.google.com/spreadsheets/d/1AbCdEf...XYZ/edit#gid=0
- *                                          ^^^^^^^^^^^^^^^^^^^^^
+ * and /edit.
  */
 const SHEET_ID = '';
 
 const SHEET_NAME = 'Staff Orders';
 const HEADERS = [
-  'Order ID',
-  'Date Added',
-  'Item Name',
-  'Category',
-  'Quantity',
-  'Notes',
-  'Added By',
-  'Status',
-  'Ordered Date',
-  'Ordered By'
+  'Order ID', 'Date Added', 'Item Name', 'Category', 'Quantity',
+  'Notes', 'Added By', 'Status', 'Ordered Date', 'Ordered By'
 ];
 const CATEGORIES = [
-  'Dog Grooming',
-  'Dog Training',
-  'Dog Boarding',
-  'Doggy Daycare',
-  'Miscellaneous'
+  'Dog Grooming', 'Dog Training', 'Dog Boarding',
+  'Doggy Daycare', 'Miscellaneous'
 ];
 
 /* ----------------------------- Web entry points --------------------------- */
 
 function doGet(e) {
-  ensureSheet_();
-  e = e || {};
-  const params = e.parameter || {};
-  if (params.app === '1') {
-    return HtmlService.createHtmlOutputFromFile('index')
-      .setTitle('Fairy Tails — Orders')
-      .addMetaTag('viewport',
-        'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  try {
+    e = e || {};
+    const params = e.parameter || {};
+    if (params.app === '1') {
+      ensureSheet_();
+      return HtmlService.createHtmlOutputFromFile('index')
+        .setTitle('Fairy Tails — Orders')
+        .addMetaTag('viewport',
+          'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+    if (params.action) {
+      return jsonOut_(dispatch_(params.action, parseMaybeJson_(params.params)));
+    }
+    return jsonOut_({
+      ok: true,
+      message: 'Fairy Tails Order API is live. POST { action, params } here.'
+    });
+  } catch (err) {
+    return jsonOut_({ ok: false, error: String(err && err.message || err) });
   }
-  if (params.action) {
-    return jsonOut_(dispatch_(params.action, parseMaybeJson_(params.params)));
-  }
-  return jsonOut_({
-    ok: true,
-    message: 'Fairy Tails Order API is live. POST { action, params } here.'
-  });
 }
 
 function doPost(e) {
-  ensureSheet_();
-  let body = {};
   try {
+    let body = {};
     if (e && e.postData && e.postData.contents) {
-      body = JSON.parse(e.postData.contents);
+      try { body = JSON.parse(e.postData.contents); }
+      catch (parseErr) {
+        return jsonOut_({ ok: false, error: 'Invalid JSON body' });
+      }
     } else if (e && e.parameter && e.parameter.action) {
       body = { action: e.parameter.action,
                params: parseMaybeJson_(e.parameter.params) };
     }
+    return jsonOut_(dispatch_(body.action, body.params || {}));
   } catch (err) {
-    return jsonOut_({ ok: false, error: 'Invalid JSON body' });
+    return jsonOut_({ ok: false, error: String(err && err.message || err) });
   }
-  return jsonOut_(dispatch_(body.action, body.params || {}));
 }
 
 function jsonOut_(obj) {
@@ -96,7 +87,7 @@ function dispatch_(action, params) {
       case 'markOrdered':  return markOrdered(params.orderId, params.initials);
       case 'undoOrdered':  return undoOrdered(params.orderId);
       case 'reAddOrder':   return reAddOrder(params.orderId, params.addedBy);
-      default:             return { ok: false, error: 'Unknown action' };
+      default:             return { ok: false, error: 'Unknown action: ' + action };
     }
   } catch (err) {
     return { ok: false, error: String(err && err.message || err) };
@@ -174,10 +165,7 @@ function newId_() {
 }
 
 function sanitiseInitials_(s) {
-  return String(s || '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-    .slice(0, 4);
+  return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
 }
 
 function sanitiseCategory_(s) {
@@ -195,20 +183,15 @@ function getOrders() {
   const sevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
   for (let i = 0; i < data.length; i++) {
     const o = rowToObj_(data[i]);
-    if (o.status === 'Active') {
-      out.active.push(o);
-    } else if (o.status === 'Ordered' && o.orderedDate) {
+    if (o.status === 'Active') out.active.push(o);
+    else if (o.status === 'Ordered' && o.orderedDate) {
       const t = new Date(o.orderedDate).getTime();
       if (!isNaN(t) && t >= sevenDaysAgoMs) out.recent.push(o);
     }
   }
-  out.active.sort(function (a, b) {
-    return new Date(b.dateAdded) - new Date(a.dateAdded);
-  });
-  out.recent.sort(function (a, b) {
-    return new Date(b.orderedDate) - new Date(a.orderedDate);
-  });
-  return out;
+  out.active.sort(function (a, b) { return new Date(b.dateAdded) - new Date(a.dateAdded); });
+  out.recent.sort(function (a, b) { return new Date(b.orderedDate) - new Date(a.orderedDate); });
+  return { ok: true, active: out.active, recent: out.recent, categories: out.categories };
 }
 
 function addOrder(payload) {
@@ -217,27 +200,15 @@ function addOrder(payload) {
   if (!itemName) return { ok: false, error: 'Item name required' };
   const sh = ensureSheet_();
   const id = newId_();
-  const dateAdded = payload.dateAdded
-    ? new Date(payload.dateAdded)
-    : new Date();
-  if (isNaN(dateAdded.getTime())) {
-    return { ok: false, error: 'Invalid date' };
-  }
+  const dateAdded = payload.dateAdded ? new Date(payload.dateAdded) : new Date();
+  if (isNaN(dateAdded.getTime())) return { ok: false, error: 'Invalid date' };
   const qty = payload.quantity === '' || payload.quantity == null
-    ? ''
-    : Number(payload.quantity);
+    ? '' : Number(payload.quantity);
   const notes = String(payload.notes || '').trim();
   sh.appendRow([
-    id,
-    dateAdded,
-    itemName,
-    sanitiseCategory_(payload.category),
-    qty,
-    notes,
-    sanitiseInitials_(payload.addedBy),
-    'Active',
-    '',
-    ''
+    id, dateAdded, itemName, sanitiseCategory_(payload.category),
+    qty, notes, sanitiseInitials_(payload.addedBy),
+    'Active', '', ''
   ]);
   SpreadsheetApp.flush();
   return { ok: true, orderId: id };
@@ -247,11 +218,7 @@ function markOrdered(orderId, initials) {
   const sh = ensureSheet_();
   const row = findRowById_(sh, orderId);
   if (row === -1) return { ok: false, error: 'Order not found' };
-  sh.getRange(row, 8, 1, 3).setValues([[
-    'Ordered',
-    new Date(),
-    sanitiseInitials_(initials)
-  ]]);
+  sh.getRange(row, 8, 1, 3).setValues([['Ordered', new Date(), sanitiseInitials_(initials)]]);
   SpreadsheetApp.flush();
   return { ok: true };
 }
@@ -271,11 +238,8 @@ function reAddOrder(orderId, addedBy) {
   if (row === -1) return { ok: false, error: 'Order not found' };
   const src = rowToObj_(sh.getRange(row, 1, 1, HEADERS.length).getValues()[0]);
   return addOrder({
-    itemName: src.itemName,
-    category: src.category,
-    quantity: src.quantity,
-    notes:    src.notes,
-    addedBy:  addedBy
+    itemName: src.itemName, category: src.category,
+    quantity: src.quantity, notes: src.notes, addedBy: addedBy
   });
 }
 
