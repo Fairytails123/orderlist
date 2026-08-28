@@ -63,8 +63,8 @@ Deploy the **backend first**, onto the existing Apps Script deployment, and
 verify that a live `getOrders` response contains an `attention` array. Only
 after that check passes should `index.html` be published to GitHub Pages. If the
 front end is published first, staff phones can briefly use the new page against
-an older backend; the page will warn that Needs Attention is unavailable rather
-than incorrectly saying that nothing needs attention.
+an older backend; the page will warn that flagged items are unavailable rather
+than incorrectly saying that nothing is flagged.
 
 ---
 
@@ -108,7 +108,7 @@ The repo is **<https://github.com/Fairytails123/orderlist>**.
   either taps **Mark ordered**, or uses the red **Reject / flag** action and
   adds a required note explaining the reason. A 5-second Undo toast covers
   slips.
-- Flagged items move to the **Needs Attention** tab with the note, flagger and
+- Flagged items move to the **Flagged** tab with the note, flagger and
   automatic removal date visible. From there the manager can send an item back
   to the Order List, edit its note, mark it ordered, or remove it.
 - Ordered items disappear from both tabs but stay in the Sheet with a status
@@ -174,9 +174,9 @@ or delete the header row, or `Code.gs` will rewrite them on next request.
   headers in `index.html`, switch back to text/plain.
 - **An item didn't appear.** Tap *Refresh* at the top right of the active
   list — Apps Script can take a moment to write to the Sheet.
-- **The Needs Attention tab says "older backend".** Deploy and verify the
+- **The Flagged tab says "older backend".** Deploy and verify the
   Apps Script backend before publishing or refreshing the GitHub Pages front
-  end. Do not treat this warning as an empty Needs Attention list.
+  end. Do not treat this warning as an empty Flagged list.
 - **"You cannot edit this deployment".** Use *Manage deployments → pencil →
   New version* rather than creating a fresh deployment, otherwise the URL
   changes and every phone needs reconfiguring.
