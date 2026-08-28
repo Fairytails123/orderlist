@@ -378,7 +378,7 @@
         <button class="tab" role="tab" id="tab-summary" aria-selected="false"
                 aria-controls="panel-summary">Summary</button>
         <button class="tab" role="tab" id="tab-attention" aria-selected="false"
-                aria-controls="panel-attention">Needs Attention
+                aria-controls="panel-attention">Flagged
           <span class="tab-count" id="attentionCount"></span>
         </button>
       </div>
@@ -455,11 +455,11 @@
         </details>
       </section>
 
-      <!-- Needs Attention tab -->
+      <!-- Flagged tab -->
       <section class="tab-panel" id="panel-attention"
                role="tabpanel" aria-labelledby="tab-attention">
         <div class="toolbar">
-          <h2>Needs Attention</h2>
+          <h2>Flagged</h2>
           <button class="icon-btn" type="button" id="refreshAttention"
                   title="Refresh">⟲ Refresh</button>
         </div>
@@ -471,7 +471,7 @@
   <div class="modal-bg" id="flagModal" hidden>
     <div class="modal" role="dialog" aria-modal="true"
          aria-labelledby="flagModalTitle">
-      <h2 id="flagModalTitle">Needs Attention</h2>
+      <h2 id="flagModalTitle">Flag this item</h2>
       <p>Reason for <strong id="flagItemName"></strong></p>
       <div class="chips" aria-label="Common reasons">
         <button class="chip" type="button" data-chip="Not required">Not required</button>
@@ -702,14 +702,14 @@
       }
       if (!STATE.attentionAvailable) {
         wrap.innerHTML =
-          '<div class="empty"><strong>Needs Attention is unavailable</strong>'
+          '<div class="empty"><strong>Flagged items are unavailable</strong>'
           + 'This page is connected to an older backend. Refresh after the '
           + 'backend deployment has been updated.</div>';
         return;
       }
       if (!STATE.attention.length) {
         wrap.innerHTML =
-          '<div class="empty"><strong>Nothing needs attention</strong>'
+          '<div class="empty"><strong>Nothing flagged</strong>'
           + 'Flagged items and their notes will appear here.</div>';
         return;
       }
@@ -877,7 +877,7 @@
       STATE.flagMode = mode;
       STATE.flagOrderId = orderId;
       document.getElementById('flagModalTitle').textContent =
-        mode === 'edit' ? 'Edit attention note' : 'Needs Attention';
+        mode === 'edit' ? 'Edit note' : 'Flag this item';
       document.getElementById('flagItemName').textContent = order.itemName || '';
       document.getElementById('flagNote').value =
         mode === 'edit' ? String(order.attentionNote || '') : '';
