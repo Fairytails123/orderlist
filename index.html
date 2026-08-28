@@ -73,12 +73,17 @@
     }
 
     /* -------- Tabs -------- */
-    .tabs { display: flex; gap: 4px; margin-top: 10px; }
+    .tabs { display: flex; gap: 2px; margin-top: 10px; }
     .tab {
-      flex: 1; padding: 12px 0; text-align: center;
+      flex: 1 1 0; min-width: 0; padding: 10px 2px; text-align: center;
       background: transparent; border: 0;
-      font-size: 15px; font-weight: 600; color: var(--ink-soft);
+      font-size: 13px; line-height: 1.2; font-weight: 600;
+      color: var(--ink-soft);
       border-bottom: 3px solid transparent;
+    }
+    .tab-count {
+      display: inline-block; min-width: 12px;
+      color: var(--danger); font-size: 11px; font-weight: 700;
     }
     .tab[aria-selected="true"] {
       color: var(--accent-dark);
@@ -196,6 +201,33 @@
       min-width: 84px;
     }
     .item .ordered-btn:active { background: var(--accent-dark); }
+    .item .action-stack {
+      flex: 0 0 96px; display: flex; flex-direction: column; gap: 7px;
+    }
+    .item .action-stack .ordered-btn {
+      width: 100%; align-self: auto; min-width: 0;
+    }
+    .flag-btn {
+      width: 100%; padding: 10px 8px;
+      border: 0; border-radius: var(--radius-sm);
+      background: var(--danger); color: #fff;
+      font-size: 13px; font-weight: 700;
+    }
+    .attention-card { display: block; }
+    .attention-note {
+      margin-top: 9px; padding: 10px;
+      border-left: 4px solid var(--danger); border-radius: 8px;
+      background: #fff1ef; color: var(--ink);
+      font-size: 14px; font-weight: 650; word-break: break-word;
+    }
+    .attention-dates {
+      margin-top: 8px; color: var(--ink-soft); font-size: 12px;
+    }
+    .attention-actions {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px; margin-top: 12px;
+    }
+    .attention-actions .btn { padding: 10px 8px; font-size: 13px; }
 
     /* -------- Section heads -------- */
     .section-head {
@@ -314,6 +346,13 @@
     }
     .modal h2 { margin: 0 0 6px; font-size: 17px; }
     .modal p { margin: 0 0 14px; color: var(--ink-soft); font-size: 14px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; }
+    .chip {
+      border: 1px solid #c9e8f3; border-radius: 999px;
+      background: var(--accent-soft); color: var(--accent-dark);
+      padding: 7px 10px; font-size: 12px; font-weight: 650;
+    }
+    .modal-actions { display: flex; gap: 10px; margin-top: 14px; }
 
     /* -------- Misc -------- */
     .hint {
@@ -338,6 +377,10 @@
                 aria-controls="panel-list">Order List</button>
         <button class="tab" role="tab" id="tab-summary" aria-selected="false"
                 aria-controls="panel-summary">Summary</button>
+        <button class="tab" role="tab" id="tab-attention" aria-selected="false"
+                aria-controls="panel-attention">Needs Attention
+          <span class="tab-count" id="attentionCount"></span>
+        </button>
       </div>
     </header>
 
@@ -411,7 +454,40 @@
           </div>
         </details>
       </section>
+
+      <!-- Needs Attention tab -->
+      <section class="tab-panel" id="panel-attention"
+               role="tabpanel" aria-labelledby="tab-attention">
+        <div class="toolbar">
+          <h2>Needs Attention</h2>
+          <button class="icon-btn" type="button" id="refreshAttention"
+                  title="Refresh">⟲ Refresh</button>
+        </div>
+        <div id="attentionList"><div class="loading">Loading…</div></div>
+      </section>
     </main>
+  </div>
+
+  <div class="modal-bg" id="flagModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true"
+         aria-labelledby="flagModalTitle">
+      <h2 id="flagModalTitle">Needs Attention</h2>
+      <p>Reason for <strong id="flagItemName"></strong></p>
+      <div class="chips" aria-label="Common reasons">
+        <button class="chip" type="button" data-chip="Not required">Not required</button>
+        <button class="chip" type="button" data-chip="Already here">Already here</button>
+        <button class="chip" type="button" data-chip="Stored elsewhere">Stored elsewhere</button>
+        <button class="chip" type="button" data-chip="Wrong item">Wrong item</button>
+        <button class="chip" type="button" data-chip="Ask manager">Ask manager</button>
+      </div>
+      <label for="flagNote">Note <span class="hint">(required)</span></label>
+      <textarea id="flagNote" rows="4" maxlength="240"
+                placeholder="Explain what staff need to know"></textarea>
+      <div class="modal-actions">
+        <button class="btn secondary" type="button" id="flagCancel">Cancel</button>
+        <button class="btn danger" type="button" id="flagSave" disabled>Save</button>
+      </div>
+    </div>
   </div>
 
 
@@ -426,10 +502,14 @@
     const STATE = {
       active: [],
       recent: [],
+      attention: [],
+      attentionAvailable: null,
+      attentionRetentionDays: 30,
+      loadFailed: false,
       categories: ['Dog Grooming','Dog Training','Dog Boarding',
                    'Doggy Daycare','Miscellaneous'],
-      pendingUndo: null,
-      undoTimer: null
+      flagMode: null,
+      flagOrderId: null
     };
     const INITIALS_KEY = 'ftails.initials';
 
@@ -523,16 +603,15 @@
     }
 
     function switchTab(which) {
-      const isList = which === 'list';
-      document.getElementById('tab-list')
-        .setAttribute('aria-selected', isList ? 'true' : 'false');
-      document.getElementById('tab-summary')
-        .setAttribute('aria-selected', isList ? 'false' : 'true');
-      document.getElementById('panel-list')
-        .classList.toggle('active', isList);
-      document.getElementById('panel-summary')
-        .classList.toggle('active', !isList);
-      if (!isList) renderSummary();
+      ['list', 'summary', 'attention'].forEach(name => {
+        const selected = which === name;
+        document.getElementById('tab-' + name)
+          .setAttribute('aria-selected', selected ? 'true' : 'false');
+        document.getElementById('panel-' + name)
+          .classList.toggle('active', selected);
+      });
+      if (which === 'summary') renderSummary();
+      if (which === 'attention') renderAttention();
     }
 
     /* ---- Renderers ---- */
@@ -551,6 +630,12 @@
 
     function renderSummary() {
       const wrap = document.getElementById('summaryList');
+      if (STATE.loadFailed) {
+        wrap.innerHTML =
+          '<div class="empty"><strong>Couldn’t load — tap Refresh</strong>'
+          + 'Check your connection and try again.</div>';
+        return;
+      }
       const grouped = {};
       STATE.categories.forEach(c => grouped[c] = []);
       STATE.active.forEach(o => {
@@ -599,6 +684,74 @@
       }
     }
 
+    function renderAttention() {
+      const wrap = document.getElementById('attentionList');
+      const count = document.getElementById('attentionCount');
+      if (STATE.loadFailed) {
+        count.textContent = '';
+        wrap.innerHTML =
+          '<div class="empty"><strong>Couldn’t load — tap Refresh</strong>'
+          + 'Check your connection and try again.</div>';
+        return;
+      }
+      count.textContent = STATE.attentionAvailable && STATE.attention.length
+        ? String(STATE.attention.length) : '';
+      if (STATE.attentionAvailable === null) {
+        wrap.innerHTML = '<div class="loading">Loading…</div>';
+        return;
+      }
+      if (!STATE.attentionAvailable) {
+        wrap.innerHTML =
+          '<div class="empty"><strong>Needs Attention is unavailable</strong>'
+          + 'This page is connected to an older backend. Refresh after the '
+          + 'backend deployment has been updated.</div>';
+        return;
+      }
+      if (!STATE.attention.length) {
+        wrap.innerHTML =
+          '<div class="empty"><strong>Nothing needs attention</strong>'
+          + 'Flagged items and their notes will appear here.</div>';
+        return;
+      }
+      wrap.innerHTML = STATE.attention.map(attentionCardHtml).join('');
+    }
+
+    function attentionCardHtml(o) {
+      const meta = [];
+      meta.push('<span class="badge">' + escapeHtml(o.category) + '</span>');
+      if (o.quantity) meta.push('Qty ' + escapeHtml(o.quantity));
+      meta.push('Added ' + escapeHtml(formatDate(o.dateAdded)));
+      if (o.addedBy) meta.push('by ' + escapeHtml(o.addedBy));
+      const originalNotes = o.notes
+        ? '<div class="notes">' + escapeHtml(o.notes) + '</div>' : '';
+      const flaggedDate = escapeHtml(formatDate(o.attentionDate));
+      const attentionBy = o.attentionBy
+        ? ' by ' + escapeHtml(o.attentionBy) : '';
+      const expiry = new Date(o.attentionDate);
+      const expiryText = isNaN(expiry.getTime()) ? ''
+        : escapeHtml(formatDate(new Date(expiry.getTime()
+          + STATE.attentionRetentionDays * 24 * 60 * 60 * 1000)));
+      return ''
+        + '<div class="item attention-card">'
+        +   '<div class="item-name">' + escapeHtml(o.itemName) + '</div>'
+        +   '<div class="meta">' + meta.join(' · ') + '</div>'
+        +   originalNotes
+        +   '<div class="attention-note">' + escapeHtml(o.attentionNote) + '</div>'
+        +   '<div class="attention-dates">Flagged ' + flaggedDate + attentionBy
+        +     (expiryText ? ' · Auto-removes ' + expiryText : '') + '</div>'
+        +   '<div class="attention-actions">'
+        +     '<button class="btn secondary" data-restore="' + escapeHtml(o.orderId)
+        +       '">Send back</button>'
+        +     '<button class="btn secondary" data-editnote="' + escapeHtml(o.orderId)
+        +       '">Edit note</button>'
+        +     '<button class="btn" data-ordered="' + escapeHtml(o.orderId)
+        +       '">Mark ordered</button>'
+        +     '<button class="btn danger" data-remove="' + escapeHtml(o.orderId)
+        +       '">Remove</button>'
+        +   '</div>'
+        + '</div>';
+    }
+
     function itemCardHtml(o, withOrderedBtn) {
       const meta = [];
       meta.push('<span class="badge">' + escapeHtml(o.category) + '</span>');
@@ -609,8 +762,12 @@
         ? '<div class="notes">' + escapeHtml(o.notes) + '</div>'
         : '';
       const btn = withOrderedBtn
-        ? '<button class="ordered-btn" data-ordered="'
-          + escapeHtml(o.orderId) + '">Mark<br>ordered</button>'
+        ? '<div class="action-stack">'
+          + '<button class="ordered-btn" data-ordered="'
+          + escapeHtml(o.orderId) + '">Mark ordered</button>'
+          + '<button class="flag-btn danger" data-flag="'
+          + escapeHtml(o.orderId) + '">Reject / flag</button>'
+          + '</div>'
         : '';
       return ''
         + '<div class="item">'
@@ -630,18 +787,30 @@
       loading = true;
       try {
         const data = await call('getOrders');
+        STATE.loadFailed = false;
         STATE.active = data.active || [];
         STATE.recent = data.recent || [];
+        STATE.attentionAvailable = Array.isArray(data.attention);
+        STATE.attention = STATE.attentionAvailable ? data.attention : [];
+        const retentionDays = Number(data.attentionRetentionDays);
+        STATE.attentionRetentionDays = Number.isFinite(retentionDays)
+          ? retentionDays : 30;
         if (Array.isArray(data.categories) && data.categories.length) {
           STATE.categories = data.categories;
         }
         renderActive();
         renderSummary();
+        renderAttention();
       } catch (e) {
         console.error(e);
-        document.getElementById('activeList').innerHTML =
-          '<div class="empty"><strong>Couldn’t load orders</strong>'
-          + 'Check your connection and try Refresh.</div>';
+        STATE.loadFailed = true;
+        const errorHtml =
+          '<div class="empty"><strong>Couldn’t load — tap Refresh</strong>'
+          + 'Check your connection and try again.</div>';
+        document.getElementById('activeList').innerHTML = errorHtml;
+        document.getElementById('summaryList').innerHTML = errorHtml;
+        document.getElementById('attentionList').innerHTML = errorHtml;
+        document.getElementById('recentList').innerHTML = errorHtml;
         showToast('Could not load orders', { error: true });
       } finally {
         loading = false;
@@ -691,6 +860,106 @@
       }
     }
 
+    function findOrder(orderId) {
+      return STATE.active.find(o => o.orderId === orderId)
+        || STATE.attention.find(o => o.orderId === orderId)
+        || null;
+    }
+
+    function syncFlagSave() {
+      const note = document.getElementById('flagNote').value.trim();
+      document.getElementById('flagSave').disabled = !note;
+    }
+
+    function openFlagModal(orderId, mode) {
+      const order = findOrder(orderId);
+      if (!order) return;
+      STATE.flagMode = mode;
+      STATE.flagOrderId = orderId;
+      document.getElementById('flagModalTitle').textContent =
+        mode === 'edit' ? 'Edit attention note' : 'Needs Attention';
+      document.getElementById('flagItemName').textContent = order.itemName || '';
+      document.getElementById('flagNote').value =
+        mode === 'edit' ? String(order.attentionNote || '') : '';
+      document.getElementById('flagModal').hidden = false;
+      syncFlagSave();
+      document.getElementById('flagNote').focus();
+    }
+
+    function closeFlagModal() {
+      document.getElementById('flagModal').hidden = true;
+      document.getElementById('flagNote').value = '';
+      STATE.flagMode = null;
+      STATE.flagOrderId = null;
+      syncFlagSave();
+    }
+
+    async function saveFlagNote() {
+      const orderId = STATE.flagOrderId;
+      const mode = STATE.flagMode;
+      const note = document.getElementById('flagNote').value.trim();
+      if (!orderId || !mode || !note) {
+        syncFlagSave();
+        return;
+      }
+      const initials = getInitials();
+      if (mode === 'flag' && !initials) {
+        closeFlagModal();
+        switchTab('list');
+        document.getElementById('initials').focus();
+        showToast('Please enter your initials in the form first', { error: true });
+        return;
+      }
+      const button = document.getElementById('flagSave');
+      button.disabled = true;
+      try {
+        const res = mode === 'edit'
+          ? await call('updateAttentionNote', { orderId: orderId, note: note })
+          : await call('flagAttention', {
+              orderId: orderId, note: note, initials: initials
+            });
+        if (!res || !res.ok) throw new Error(res && res.error || 'Failed');
+        if (mode === 'edit') {
+          const edited = STATE.attention.find(o => o.orderId === orderId);
+          if (edited) edited.attentionNote = note;
+          closeFlagModal();
+          renderAttention();
+          showToast('Note updated');
+        } else {
+          const idx = STATE.active.findIndex(o => o.orderId === orderId);
+          const flagged = idx === -1 ? null : STATE.active.splice(idx, 1)[0];
+          if (flagged) {
+            flagged.status = 'Needs Attention';
+            flagged.attentionNote = note;
+            flagged.attentionDate = new Date().toISOString();
+            flagged.attentionBy = initials;
+            STATE.attention.unshift(flagged);
+          }
+          closeFlagModal();
+          renderActive(); renderSummary(); renderAttention();
+          showToast('Flagged: ' + (flagged ? flagged.itemName : 'item'), {
+            actionLabel: 'Undo', ttl: 5000,
+            onAction: async () => {
+              try {
+                const undo = await call('restoreOrder', { orderId: orderId });
+                if (!undo || !undo.ok) throw new Error('Failed');
+                await refresh();
+                showToast('Undone');
+              } catch (err) {
+                console.error(err);
+                showToast('Undo failed', { error: true });
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.error(e);
+        showToast(mode === 'edit' ? 'Could not update note' : 'Could not flag item',
+          { error: true });
+        syncFlagSave();
+      }
+    }
+
     async function handleOrdered(orderId) {
       const initials = getInitials();
       if (!initials) {
@@ -701,11 +970,17 @@
         return;
       }
 
-      // Optimistically remove from local state and re-render
-      const idx = STATE.active.findIndex(o => o.orderId === orderId);
+      // Optimistically remove from whichever list supplied the action.
+      let source = STATE.active;
+      let idx = source.findIndex(o => o.orderId === orderId);
+      const fromAttention = idx === -1;
+      if (fromAttention) {
+        source = STATE.attention;
+        idx = source.findIndex(o => o.orderId === orderId);
+      }
       if (idx === -1) return;
-      const removed = STATE.active.splice(idx, 1)[0];
-      renderActive(); renderSummary();
+      const removed = source.splice(idx, 1)[0];
+      renderActive(); renderSummary(); renderAttention();
 
       // Send to server
       try {
@@ -713,8 +988,8 @@
         if (!res || !res.ok) throw new Error(res && res.error || 'Failed');
       } catch (e) {
         console.error(e);
-        STATE.active.splice(idx, 0, removed);
-        renderActive(); renderSummary();
+        source.splice(idx, 0, removed);
+        renderActive(); renderSummary(); renderAttention();
         showToast('Could not mark ordered', { error: true });
         return;
       }
@@ -737,6 +1012,63 @@
       });
       // Refresh recent-ordered count after the toast appears
       setTimeout(refresh, 200);
+    }
+
+    async function handleRestore(orderId) {
+      const idx = STATE.attention.findIndex(o => o.orderId === orderId);
+      if (idx === -1) return;
+      try {
+        const res = await call('restoreOrder', { orderId: orderId });
+        if (!res || !res.ok) throw new Error(res && res.error || 'Failed');
+        const restored = STATE.attention.splice(idx, 1)[0];
+        restored.status = 'Active';
+        restored.attentionDate = '';
+        restored.attentionBy = '';
+        STATE.active.unshift(restored);
+        renderActive(); renderSummary(); renderAttention();
+        showToast('Sent back to the Order List');
+      } catch (e) {
+        console.error(e);
+        showToast('Could not send item back', { error: true });
+      }
+    }
+
+    async function handleRemove(orderId) {
+      const initials = getInitials();
+      if (!initials) {
+        switchTab('list');
+        document.getElementById('initials').focus();
+        showToast('Please enter your initials in the form first', { error: true });
+        return;
+      }
+      const idx = STATE.attention.findIndex(o => o.orderId === orderId);
+      if (idx === -1) return;
+      const removed = STATE.attention[idx];
+      try {
+        const res = await call('removeOrder', {
+          orderId: orderId, initials: initials
+        });
+        if (!res || !res.ok) throw new Error(res && res.error || 'Failed');
+        STATE.attention.splice(idx, 1);
+        renderAttention();
+        showToast('Removed: ' + removed.itemName, {
+          actionLabel: 'Undo', ttl: 5000,
+          onAction: async () => {
+            try {
+              const undo = await call('undoRemove', { orderId: orderId });
+              if (!undo || !undo.ok) throw new Error('Failed');
+              await refresh();
+              showToast('Undone');
+            } catch (err) {
+              console.error(err);
+              showToast('Undo failed', { error: true });
+            }
+          }
+        });
+      } catch (e) {
+        console.error(e);
+        showToast('Could not remove item', { error: true });
+      }
     }
 
     async function handleReadd(orderId) {
@@ -765,6 +1097,8 @@
         .addEventListener('click', () => switchTab('list'));
       document.getElementById('tab-summary')
         .addEventListener('click', () => switchTab('summary'));
+      document.getElementById('tab-attention')
+        .addEventListener('click', () => switchTab('attention'));
 
       // Form
       document.getElementById('dateAdded').value = todayLocalISO();
@@ -775,9 +1109,46 @@
         .addEventListener('click', refresh);
       document.getElementById('refreshSummary')
         .addEventListener('click', refresh);
+      document.getElementById('refreshAttention')
+        .addEventListener('click', refresh);
+
+      // Attention-note modal
+      document.getElementById('flagNote')
+        .addEventListener('input', syncFlagSave);
+      document.getElementById('flagSave')
+        .addEventListener('click', saveFlagNote);
+      document.getElementById('flagCancel')
+        .addEventListener('click', closeFlagModal);
 
       // Delegated clicks
       document.addEventListener('click', e => {
+        const chip = e.target.closest('[data-chip]');
+        if (chip) {
+          document.getElementById('flagNote').value =
+            chip.getAttribute('data-chip');
+          syncFlagSave();
+          return;
+        }
+        const flag = e.target.closest('[data-flag]');
+        if (flag) {
+          openFlagModal(flag.getAttribute('data-flag'), 'flag');
+          return;
+        }
+        const edit = e.target.closest('[data-editnote]');
+        if (edit) {
+          openFlagModal(edit.getAttribute('data-editnote'), 'edit');
+          return;
+        }
+        const restore = e.target.closest('[data-restore]');
+        if (restore) {
+          handleRestore(restore.getAttribute('data-restore'));
+          return;
+        }
+        const remove = e.target.closest('[data-remove]');
+        if (remove) {
+          handleRemove(remove.getAttribute('data-remove'));
+          return;
+        }
         const ord = e.target.closest('[data-ordered]');
         if (ord) { handleOrdered(ord.getAttribute('data-ordered')); return; }
         const re = e.target.closest('[data-readd]');
